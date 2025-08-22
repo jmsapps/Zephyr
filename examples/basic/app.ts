@@ -25,6 +25,11 @@ document.body.appendChild(
     ),
     el('p', undefined, 'Double: ', doubled),
     el('span', { 'data-count': count, disabled: true }, '(inspect data-count)'),
-    el('div', { hidden: isHidden }, 'Hello world!'),
+    el('br', undefined, ''),
+    el('br', undefined, ''),
+    derived(isHidden, h => h ?
+      el('div', undefined, 'Wait for it...') :
+      el('div', { hidden: isHidden }, 'Hello world!')
+    ),
   )
 );

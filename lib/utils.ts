@@ -41,15 +41,44 @@ export function isSignal(x: unknown): x is Signal<unknown> {
   return !!x && typeof x === 'object' && 'get' in (x as any) && 'sub' in (x as any);
 }
 
-export function node(value: string | Node | Signal<unknown>): Node {
-  if (value instanceof Node) return value;
-  if (typeof value === 'string') return document.createTextNode(value);
-  const t = document.createTextNode('');
-  (value as Signal<unknown>).sub((v) => { t.textContent = String(v); });
-  return t;
+function toText(v: any) {
+  return document.createTextNode(String(v));
 }
 
-export function el(tag: string, props?: Props, ...children: Array<string | Node | Signal<unknown>>) {
+function node(value: any): Node {
+  if (value instanceof Node) return value;
+
+  if (isSignal(value)) {
+    let cur: Node;
+    const init = value.get?.();
+
+    cur = init instanceof Node
+      ? init
+      : (init == null || init === false ? document.createTextNode("") : toText(init));
+
+    value.sub((v: any) => {
+      const next = v instanceof Node
+        ? v
+        : (v == null || v === false ? document.createTextNode("") : toText(v));
+      (cur as any).replaceWith(next);
+      cur = next;
+    });
+
+    return cur;
+  }
+
+  if (value == null || value === false) {
+    return document.createTextNode("")
+  };
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return toText(value);
+  }
+
+  return toText("");
+}
+
+export function el(tag: string, props?: Props, ...children: Array<string | number | boolean | Node | Signal<unknown> | null | undefined>) {
   const e = document.createElement(tag);
 
   const apply = (k: string, v: any) => {
