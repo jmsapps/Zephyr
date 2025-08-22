@@ -1,0 +1,13 @@
+{
+  "name": "zephyr",
+  "version": "1.0.0",
+  "main": "app.js",
+  "license": "MIT",
+  "scripts": {
+    "dev": "esbuild app.ts --bundle --outfile=app.js --watch --servedir=."
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.8",
+    "eslint": "^9.33.0"
+  }
+}
