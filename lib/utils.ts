@@ -1,5 +1,5 @@
-import { Signal, Subscriber, Props, Unsub } from "./types";
-import { BOOLEAN_ATTRS } from "./constants";
+import { Signal, Subscriber, Props, Unsub, Child } from './types';
+import { BOOLEAN_ATTRS } from './constants';
 
 export function signal<T>(initial: T): Signal<T> {
   let v = initial;
@@ -23,11 +23,10 @@ export function effect(fn: () => Unsub | void, deps?: Array<Signal<any>>) {
   const run = () => {
     if (cleanup) cleanup();
     const res = fn();
-    cleanup = typeof res === "function" ? res : undefined;
+    cleanup = typeof res === 'function' ? res : undefined;
   };
 
   if (deps && deps.length > 0) {
-    // subscribe to all deps
     const unsubs = deps.map(d => d.sub(run));
     run();
     return () => { unsubs.forEach(u => u()); if (cleanup) cleanup(); };
@@ -37,50 +36,73 @@ export function effect(fn: () => Unsub | void, deps?: Array<Signal<any>>) {
   }
 }
 
-export function isSignal(x: unknown): x is Signal<unknown> {
+function isSignal(x: unknown): x is Signal<unknown> {
   return !!x && typeof x === 'object' && 'get' in (x as any) && 'sub' in (x as any);
 }
 
-function node(value: any): Node {
-  if (value instanceof Node) return value;
-
-  if (isSignal(value)) {
-    let cur: Node;
-    const init = value.get?.();
-
-    cur = init instanceof Node
-      ? init
-      : (
-        init == null || init === false
-          ? document.createTextNode("") : document.createTextNode(String(init))
-      );
-
-    value.sub((v: any) => {
-      const next = v instanceof Node
-        ? v
-        : (
-          v == null || v === false
-            ? document.createTextNode("") : document.createTextNode(String(v))
-        );
-      (cur as any).replaceWith(next);
-      cur = next;
-    });
-
-    return cur;
+function toNode(v: any): Node {
+  if (v instanceof Node) return v;
+  if (v == null || v === false) return document.createTextNode('');
+  if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+    return document.createTextNode(String(v));
   }
-
-  if (value == null || value === false) {
-    return document.createTextNode("")
-  };
-
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return document.createTextNode(String(value));
-  }
-
-  return document.createTextNode("");
+  return document.createTextNode('');
 }
 
-export function el(tag: string, props?: Props, ...children: Array<string | number | boolean | Node | Signal<unknown> | null | undefined>) {
+function removeBetween(parent: Node, start: Node, end: Node) {
+  let n = start.nextSibling;
+  while (n && n !== end) {
+    const next = n.nextSibling;
+    parent.removeChild(n);
+    n = next;
+  }
+}
+
+function mountChild(parent: Node, child: Child): Unsub | void {
+  if (child == null || child === false) return;
+
+  // Flatten arrays (static or mixed)
+  if (Array.isArray(child)) {
+    const unsubs = child.map(c => mountChild(parent, c)).filter(Boolean) as Unsub[];
+    if (unsubs.length) return () => unsubs.forEach(u => u());
+    return;
+  }
+
+  // Reactive child: mount between two anchors and update only that slice
+  if (isSignal(child)) {
+    const start = document.createTextNode('');
+    const end = document.createTextNode('');
+    parent.appendChild(start);
+    parent.appendChild(end);
+
+    const render = (val: any) => {
+      // Support signals that yield a single value or an array of values/nodes
+      const items = Array.isArray(val) ? val : [val];
+      const nodes = items.map(toNode);
+
+      // Replace only between anchors
+      removeBetween(parent, start, end);
+      for (const n of nodes) parent.insertBefore(n, end);
+    };
+
+    // initial + subscribe
+    render((child as any).get?.());
+    const unsub = (child as any).sub(render);
+
+    // cleanup (removes content + anchors)
+    return () => {
+      unsub?.();
+      removeBetween(parent, start, end);
+      parent.removeChild(start);
+      parent.removeChild(end);
+    };
+  }
+
+  // Static child
+  parent.appendChild(toNode(child));
+}
+
+export function el(tag: string, props?: Props, ...children: Child[]) {
   const e = document.createElement(tag);
 
   const apply = (k: string, v: any) => {
@@ -90,13 +112,13 @@ export function el(tag: string, props?: Props, ...children: Array<string | numbe
     }
     if (BOOLEAN_ATTRS.has(k)) {
       const on = !!v;
-      (e as any)[k] = on;                 // keep DOM property in sync
-      if (on) e.setAttribute(k, "");      // present attribute => truthy
-      else e.removeAttribute(k);          // remove when false
+      (e as any)[k] = on;
+      if (on) e.setAttribute(k, '');
+      else e.removeAttribute(k);
       return;
     }
     if (v === true) {
-      e.setAttribute(k, "");
+      e.setAttribute(k, '');
     } else if (v === false || v == null) {
       e.removeAttribute(k);
     } else {
@@ -107,9 +129,7 @@ export function el(tag: string, props?: Props, ...children: Array<string | numbe
   if (props) {
     for (const [k, v] of Object.entries(props)) {
       if (isSignal(v)) {
-        // set initial
-        apply(k, (v as any).get?.() ?? undefined);
-        // update on change
+        apply(k, (v as any).get?.());
         (v as any).sub((nv: any) => apply(k, nv));
       } else {
         apply(k, v);
@@ -117,7 +137,8 @@ export function el(tag: string, props?: Props, ...children: Array<string | numbe
     }
   }
 
-  for (const c of children) e.appendChild(node(c));
+  // Mount each child precisely; only dynamic regions update
+  for (const c of children) mountChild(e, c);
 
   return e;
 }

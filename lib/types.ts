@@ -8,3 +8,10 @@ export interface Signal<T> {
   set(v: T): void;
   sub(fn: Subscriber<T>): Unsub;
 }
+
+export type Child =
+  | string | number | boolean
+  | Node
+  | Signal<unknown>
+  | Array<Child>
+  | null | undefined;
