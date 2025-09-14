@@ -17,7 +17,7 @@ export function derived<A, B>(s: Signal<A>, fn: (a: A) => B): Signal<B> {
   return out;
 }
 
-export function effect<T>(fn: () => Unsub | void, deps?: Array<Signal<any>>) {
+export function effect(fn: () => Unsub | void, deps?: Array<Signal<any>>) {
   let cleanup: Unsub | undefined;
 
   const run = () => {
@@ -41,10 +41,6 @@ export function isSignal(x: unknown): x is Signal<unknown> {
   return !!x && typeof x === 'object' && 'get' in (x as any) && 'sub' in (x as any);
 }
 
-function toText(v: any) {
-  return document.createTextNode(String(v));
-}
-
 function node(value: any): Node {
   if (value instanceof Node) return value;
 
@@ -54,12 +50,18 @@ function node(value: any): Node {
 
     cur = init instanceof Node
       ? init
-      : (init == null || init === false ? document.createTextNode("") : toText(init));
+      : (
+        init == null || init === false
+          ? document.createTextNode("") : document.createTextNode(String(init))
+      );
 
     value.sub((v: any) => {
       const next = v instanceof Node
         ? v
-        : (v == null || v === false ? document.createTextNode("") : toText(v));
+        : (
+          v == null || v === false
+            ? document.createTextNode("") : document.createTextNode(String(v))
+        );
       (cur as any).replaceWith(next);
       cur = next;
     });
@@ -72,10 +74,10 @@ function node(value: any): Node {
   };
 
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return toText(value);
+    return document.createTextNode(String(value));
   }
 
-  return toText("");
+  return document.createTextNode("");
 }
 
 export function el(tag: string, props?: Props, ...children: Array<string | number | boolean | Node | Signal<unknown> | null | undefined>) {
