@@ -1,10 +1,11 @@
 import { Signal, Subscriber, Props, Unsub, Child } from './types';
-import { BOOLEAN_ATTRS } from './constants';
+import { BOOLEAN_ATTRS, SIGNAL_TAG } from './constants';
 
 export function signal<T>(initial: T): Signal<T> {
   let v = initial;
   const subs = new Set<Subscriber<T>>();
   return {
+    [SIGNAL_TAG]: true,
     get: () => v,
     set: (nv) => { if (nv !== v) { v = nv; subs.forEach(f => f(v)); } },
     sub: (fn) => { subs.add(fn); fn(v); return () => subs.delete(fn); }
@@ -37,7 +38,11 @@ export function effect(fn: () => Unsub | void, deps?: Array<Signal<any>>) {
 }
 
 function isSignal(x: unknown): x is Signal<unknown> {
-  return !!x && typeof x === 'object' && 'get' in (x as any) && 'sub' in (x as any);
+  return !!x &&
+    typeof x === "object" &&
+    (x as any)[SIGNAL_TAG] === true &&
+    typeof (x as any).get === "function" &&
+    typeof (x as any).sub === "function";
 }
 
 function toNode(v: any): Node {
