@@ -1,4 +1,4 @@
-import { signal, el } from '../../lib/utils';
+import el, { signal } from '../../lib';
 
 const text = signal('');
 

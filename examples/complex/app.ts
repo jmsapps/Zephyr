@@ -1,4 +1,4 @@
-import { signal, derived, el, effect } from '../../lib/utils';
+import el, { signal, derived, effect } from '../../lib';
 
 // ultra-cheap text binding for plain text nodes
 const text = (s: any) => {

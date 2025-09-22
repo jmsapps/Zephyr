@@ -107,7 +107,7 @@ function mountChild(parent: Node, child: Child): Unsub | void {
   parent.appendChild(toNode(child));
 }
 
-export function el(tag: string, props?: Props, ...children: Child[]) {
+export default function Zephyr(tag: string, props?: Props, ...children: Child[]) {
   const e = document.createElement(tag);
 
   const apply = (k: string, v: any) => {

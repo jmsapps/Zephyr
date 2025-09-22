@@ -4,7 +4,8 @@
   "main": "app.js",
   "license": "MIT",
   "scripts": {
-    "dev": "esbuild app.ts --bundle --outfile=app.js --watch --servedir=."
+    "dev": "esbuild app.ts --bundle --outfile=app.js --watch --servedir=.",
+    "dev-jsx": "esbuild app.jsx --bundle --outfile=app.js --watch --servedir=."
   },
   "devDependencies": {
     "esbuild": "^0.25.8",

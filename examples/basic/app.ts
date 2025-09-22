@@ -1,4 +1,4 @@
-import { signal, derived, el, effect } from "../../lib/utils";
+import el, { signal, derived, effect } from "../../lib";
 
 const count = signal(0);
 const count2 = signal(0);
